@@ -39,9 +39,3 @@ src/
 ├── context/       AuthContext (token só em memória, mesmo padrão do Stockwise — sem localStorage)
 └── lib/           api.ts (cliente tipado), format.ts
 ```
-
-## Próximos passos sugeridos
-
-- Persistência de sessão via refresh-token em cookie httpOnly (hoje: recarregar a página desloga, de propósito — token não vai pra localStorage)
-- Code-splitting (bundle atual ~770kb; dá pra separar Recharts/Framer Motion em chunk próprio)
-- Bull Board embutido ou linkado pra visualizar as filas do backend direto do dashboard
