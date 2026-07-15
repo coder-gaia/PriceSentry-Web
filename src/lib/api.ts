@@ -138,6 +138,7 @@ export type DeploySentinelInput = {
   name: string;
   selector: string;
   targetPriceCents: number;
+  currency: "BRL" | "USD" | "GBP" | "EUR";
   checkIntervalMinutes: number;
 };
 

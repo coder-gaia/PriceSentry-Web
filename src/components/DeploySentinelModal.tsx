@@ -2,7 +2,9 @@ import { useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { HudFrame } from "./HudFrame";
-import { deploySentinel } from "../lib/api";
+import { deploySentinel, type DeploySentinelInput } from "../lib/api";
+
+const CURRENCIES: DeploySentinelInput["currency"][] = ["BRL", "USD", "GBP", "EUR"];
 
 type DeploySentinelModalProps = {
   open: boolean;
@@ -17,6 +19,7 @@ export function DeploySentinelModal({ open, onClose }: DeploySentinelModalProps)
   const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
+  const [currency, setCurrency] = useState<DeploySentinelInput["currency"]>("BRL");
   const [selector, setSelector] = useState(".price");
   const [targetPrice, setTargetPrice] = useState("");
   const [intervalMinutes, setIntervalMinutes] = useState("60");
@@ -40,6 +43,7 @@ export function DeploySentinelModal({ open, onClose }: DeploySentinelModalProps)
     setName("");
     setSelector(".price");
     setTargetPrice("");
+    setCurrency("BRL");
     setIntervalMinutes("60");
     setFormError(null);
     onClose();
@@ -60,6 +64,7 @@ export function DeploySentinelModal({ open, onClose }: DeploySentinelModalProps)
       name,
       selector,
       targetPriceCents,
+      currency,
       checkIntervalMinutes: Number.parseInt(intervalMinutes, 10),
     });
   }
@@ -125,9 +130,24 @@ export function DeploySentinelModal({ open, onClose }: DeploySentinelModalProps)
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-[88px_1fr] gap-3">
                   <div className="flex flex-col gap-1.5">
-                    <label className={labelClass}>Preço-alvo (R$)</label>
+                    <label className={labelClass}>Moeda</label>
+                    <select
+                      className={inputClass}
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value as DeploySentinelInput["currency"])}
+                    >
+                      {CURRENCIES.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelClass}>Preço-alvo</label>
                     <input
                       className={inputClass}
                       value={targetPrice}
@@ -136,17 +156,18 @@ export function DeploySentinelModal({ open, onClose }: DeploySentinelModalProps)
                       required
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelClass}>Verificar a cada (min)</label>
-                    <input
-                      className={inputClass}
-                      value={intervalMinutes}
-                      onChange={(e) => setIntervalMinutes(e.target.value)}
-                      type="number"
-                      min={5}
-                      required
-                    />
-                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className={labelClass}>Verificar a cada (min)</label>
+                  <input
+                    className={inputClass}
+                    value={intervalMinutes}
+                    onChange={(e) => setIntervalMinutes(e.target.value)}
+                    type="number"
+                    min={5}
+                    required
+                  />
                 </div>
 
                 {formError && (
