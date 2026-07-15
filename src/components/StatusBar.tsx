@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "../lib/api";
+
 type StatusBarProps = {
   userEmail: string;
   activeCount: number;
@@ -24,6 +26,15 @@ export function StatusBar({ userEmail, activeCount, breachCount, onLogout }: Sta
             <span className={breachCount > 0 ? "text-magenta" : "text-static"}>{breachCount}</span> breaches
           </span>
         </div>
+
+        <a  
+          href={`${API_BASE_URL}/admin/queues`}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded border border-static/40 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-static transition hover:border-cyan hover:text-cyan"
+        >
+          Filas
+        </a>
 
         <div className="flex items-center gap-4">
           <span className="hidden font-mono text-xs text-static md:inline">{userEmail}</span>
