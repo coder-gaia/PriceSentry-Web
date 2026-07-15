@@ -7,6 +7,7 @@ import {
   logoutServer,
   type AuthUser,
 } from "../lib/api";
+import { connectSocket, disconnectSocket } from "../lib/sockets";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -30,11 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setAccessToken(result.token);
         setUser(result.user);
+        connectSocket(result.token);
       })
       .catch(() => {
         if (cancelled) return;
         setAccessToken(null);
         setUser(null);
+        disconnectSocket();
       })
       .finally(() => {
         if (!cancelled) setIsInitializing(false);
@@ -48,17 +51,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await apiLogin(email, password);
     setAccessToken(result.token);
     setUser(result.user);
+    connectSocket(result.token);
   };
 
   const register = async (email: string, password: string) => {
     const result = await apiRegister(email, password);
     setAccessToken(result.token);
     setUser(result.user);
+    connectSocket(result.token);
   };
 
   const logout = async () => {
     setAccessToken(null);
     setUser(null);
+    disconnectSocket();
     await logoutServer();
   };
 

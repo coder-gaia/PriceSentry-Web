@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getSocket } from "../lib/sockets";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { StatusBar } from "../components/StatusBar";
@@ -9,9 +12,27 @@ import { HudFrame } from "../components/HudFrame";
 import { listSentinels } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
+
 export function DashboardPage() {
   const auth = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
+
+  const queryClient = useQueryClient();
+
+useEffect(() => {
+  const socket = getSocket();
+  if (!socket) return;
+
+  function handleUpdate() {
+    queryClient.invalidateQueries({ queryKey: ["sentinels"] });
+  }
+
+  socket.on("sentinel:updated", handleUpdate);
+
+  return () => {
+    socket.off("sentinel:updated", handleUpdate);
+  };
+}, [queryClient]);
 
   const { data: sentinels, isLoading } = useQuery({
     queryKey: ["sentinels"],

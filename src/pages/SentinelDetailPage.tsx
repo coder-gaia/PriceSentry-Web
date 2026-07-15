@@ -4,6 +4,7 @@ import { HudFrame } from "../components/HudFrame";
 import { PriceChart } from "../components/PriceChart";
 import { RadarSweep } from "../components/RadarSweep";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { getSocket } from "../lib/sockets";
 import {
   getSentinel,
   getSentinelHistory,
@@ -13,7 +14,7 @@ import {
   deleteSentinel,
 } from "../lib/api";
 import { formatCents, formatDateTime, formatRelativeTime } from "../lib/format";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function SentinelDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,15 +65,39 @@ export function SentinelDetailPage() {
     },
   });
 
+  // SEMPRE antes de qualquer return
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !id) return;
+
+    function handleUpdate(payload: { trackedProductId: string }) {
+      if (payload.trackedProductId !== id) return;
+
+      queryClient.invalidateQueries({ queryKey: ["sentinel", id] });
+      queryClient.invalidateQueries({ queryKey: ["sentinel", id, "history"] });
+      queryClient.invalidateQueries({ queryKey: ["sentinel", id, "notifications"] });
+    }
+
+    socket.on("sentinel:updated", handleUpdate);
+
+    return () => {
+      socket.off("sentinel:updated", handleUpdate);
+    };
+  }, [id, queryClient]);
+
   if (productQuery.isLoading) {
     return <RadarSweep label="carregando sentinela..." />;
   }
 
   const product = productQuery.data;
+
   if (!product) {
     return (
       <div className="p-8 text-center font-mono text-sm text-static">
-        Sentinela não encontrada. <Link to="/" className="text-cyan">Voltar</Link>
+        Sentinela não encontrada.{" "}
+        <Link to="/" className="text-cyan">
+          Voltar
+        </Link>
       </div>
     );
   }
@@ -80,17 +105,24 @@ export function SentinelDetailPage() {
   const history = historyQuery.data ?? [];
   const notifications = notificationsQuery.data ?? [];
   const breached =
-    product.currentPriceCents !== null && product.currentPriceCents <= product.targetPriceCents;
+    product.currentPriceCents !== null &&
+    product.currentPriceCents <= product.targetPriceCents;
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <Link to="/" className="font-mono text-xs uppercase tracking-widest text-static hover:text-cyan">
+      <Link
+        to="/"
+        className="font-mono text-xs uppercase tracking-widest text-static hover:text-cyan"
+      >
         ← todas as sentinelas
       </Link>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">{product.name}</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">
+            {product.name}
+          </h1>
+
           <a
             href={product.url}
             target="_blank"
@@ -109,12 +141,14 @@ export function SentinelDetailPage() {
           >
             {checkNowMutation.isPending ? "Enfileirando..." : "Checar agora"}
           </button>
+
           <button
             onClick={() => toggleActiveMutation.mutate(!product.isActive)}
             className="rounded border border-static/40 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-static hover:text-ink"
           >
             {product.isActive ? "Pausar" : "Retomar"}
           </button>
+
           <button
             onClick={() => setConfirmDeleteOpen(true)}
             className="rounded border border-magenta/40 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-magenta hover:bg-magenta/10"
@@ -125,20 +159,34 @@ export function SentinelDetailPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <HudFrame color={breached ? "magenta" : "cyan"} className="bg-panel/60 p-4">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-static">preço atual</p>
+        <HudFrame
+          color={breached ? "magenta" : "cyan"}
+          className="bg-panel/60 p-4"
+        >
+          <p className="font-mono text-[11px] uppercase tracking-widest text-static">
+            preço atual
+          </p>
+
           <p className="mt-1 font-mono text-xl font-semibold text-ink">
             {formatCents(product.currentPriceCents, product.currency)}
           </p>
         </HudFrame>
+
         <HudFrame color="static" className="bg-panel/60 p-4">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-static">preço-alvo</p>
+          <p className="font-mono text-[11px] uppercase tracking-widest text-static">
+            preço-alvo
+          </p>
+
           <p className="mt-1 font-mono text-xl font-semibold text-ink">
             {formatCents(product.targetPriceCents, product.currency)}
           </p>
         </HudFrame>
+
         <HudFrame color="signal" className="bg-panel/60 p-4">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-static">última checagem</p>
+          <p className="font-mono text-[11px] uppercase tracking-widest text-static">
+            última checagem
+          </p>
+
           <p className="mt-1 font-mono text-xl font-semibold text-ink">
             {formatRelativeTime(product.lastCheckedAt)}
           </p>
@@ -149,8 +197,13 @@ export function SentinelDetailPage() {
         <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-widest text-ink">
           Histórico de preço
         </h2>
+
         {history.length > 0 ? (
-          <PriceChart history={history} targetPriceCents={product.targetPriceCents} currency={product.currency} />
+          <PriceChart
+            history={history}
+            targetPriceCents={product.targetPriceCents}
+            currency={product.currency}
+          />
         ) : (
           <p className="py-8 text-center font-mono text-xs text-static">
             ainda sem dados — clique em "checar agora"
@@ -163,16 +216,27 @@ export function SentinelDetailPage() {
           <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-widest text-ink">
             Log de verificações
           </h2>
+
           <div className="max-h-64 overflow-y-auto font-mono text-xs">
-            {history.length === 0 && <p className="text-static">sem registros ainda</p>}
+            {history.length === 0 && (
+              <p className="text-static">sem registros ainda</p>
+            )}
+
             {[...history].reverse().map((check) => (
               <div
                 key={check.id}
                 className="flex justify-between border-b border-static/10 py-1.5 last:border-0"
               >
-                <span className="text-static">{formatDateTime(check.checkedAt)}</span>
-                <span className={check.success ? "text-ink" : "text-magenta"}>
-                  {check.success ? formatCents(check.priceCents, product.currency) : check.errorMessage}
+                <span className="text-static">
+                  {formatDateTime(check.checkedAt)}
+                </span>
+
+                <span
+                  className={check.success ? "text-ink" : "text-magenta"}
+                >
+                  {check.success
+                    ? formatCents(check.priceCents, product.currency)
+                    : check.errorMessage}
                 </span>
               </div>
             ))}
@@ -183,21 +247,39 @@ export function SentinelDetailPage() {
           <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-widest text-ink">
             Notificações
           </h2>
+
           <div className="max-h-64 overflow-y-auto font-mono text-xs">
-            {notifications.length === 0 && <p className="text-static">nenhum breach disparado ainda</p>}
+            {notifications.length === 0 && (
+              <p className="text-static">
+                nenhum breach disparado ainda
+              </p>
+            )}
+
             {notifications.map((notification) => (
               <div
                 key={notification.id}
                 className="flex justify-between border-b border-static/10 py-1.5 last:border-0"
               >
-                <span className="text-static">{formatDateTime(notification.createdAt)}</span>
-                <span className="text-magenta">{formatCents(notification.priceCents, product.currency)}</span>
-                <span className="text-static uppercase">{notification.status}</span>
+                <span className="text-static">
+                  {formatDateTime(notification.createdAt)}
+                </span>
+
+                <span className="text-magenta">
+                  {formatCents(
+                    notification.priceCents,
+                    product.currency
+                  )}
+                </span>
+
+                <span className="text-static uppercase">
+                  {notification.status}
+                </span>
               </div>
             ))}
           </div>
         </HudFrame>
       </div>
+
       <ConfirmModal
         open={confirmDeleteOpen}
         title="Remover sentinela"
@@ -207,8 +289,8 @@ export function SentinelDetailPage() {
         onConfirm={() => {
           setConfirmDeleteOpen(false);
           deleteMutation.mutate();
-      }}
-    />
+        }}
+      />
     </div>
   );
 }
