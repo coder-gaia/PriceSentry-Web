@@ -1,18 +1,48 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { setAccessToken, login as apiLogin, register as apiRegister, type AuthUser } from "../lib/api";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  setAccessToken,
+  login as apiLogin,
+  register as apiRegister,
+  refreshSession,
+  logoutServer,
+  type AuthUser,
+} from "../lib/api";
 
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    refreshSession()
+      .then((result) => {
+        if (cancelled) return;
+        setAccessToken(result.token);
+        setUser(result.user);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAccessToken(null);
+        setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsInitializing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     const result = await apiLogin(email, password);
@@ -26,14 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user);
   };
 
-  const logout = () => {
+  const logout = async () => {
     setAccessToken(null);
     setUser(null);
+    await logoutServer();
   };
 
   const value = useMemo(
-    () => ({ user, isAuthenticated: user !== null, login, register, logout }),
-    [user],
+    () => ({ user, isAuthenticated: user !== null, isInitializing, login, register, logout }),
+    [user, isInitializing],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

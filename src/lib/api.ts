@@ -12,14 +12,54 @@ export function getAccessToken() {
   return accessToken;
 }
 
-export const api = axios.create({ baseURL: API_BASE_URL });
+export const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true });
 
-api.interceptors.request.use((config) => {
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessTokenOnce(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = api
+      .post<{ token: string }>("/auth/refresh")
+      .then((response) => {
+        setAccessToken(response.data.token);
+        return response.data.token;
+      })
+      .catch(() => {
+        setAccessToken(null);
+        return null;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
   }
-  return config;
-});
+  return refreshPromise;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    const isAuthEndpoint = original?.url?.startsWith("/auth/");
+    if (error.response?.status === 401 && !original?._retried && !isAuthEndpoint) {
+      original._retried = true;
+      const newToken = await refreshAccessTokenOnce();
+      if (newToken) {
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return api(original);
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
+export async function refreshSession() {
+  const { data } = await api.post<{ token: string; user: AuthUser }>("/auth/refresh");
+  return data;
+}
+
+export async function logoutServer() {
+  await api.post("/auth/logout").catch(() => undefined);
+}
 
 export type AuthUser = { id: string; email: string };
 

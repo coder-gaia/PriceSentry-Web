@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HudFrame } from "../components/HudFrame";
 import { PriceChart } from "../components/PriceChart";
 import { RadarSweep } from "../components/RadarSweep";
+import { ConfirmModal } from "../components/ConfirmModal";
 import {
   getSentinel,
   getSentinelHistory,
@@ -12,11 +13,13 @@ import {
   deleteSentinel,
 } from "../lib/api";
 import { formatCents, formatDateTime, formatRelativeTime } from "../lib/format";
+import { useState } from "react";
 
 export function SentinelDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const productQuery = useQuery({
     queryKey: ["sentinel", id],
@@ -54,7 +57,11 @@ export function SentinelDetailPage() {
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteSentinel(id!),
-    onSuccess: () => navigate("/"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sentinels"] });
+      queryClient.removeQueries({ queryKey: ["sentinel", id] });
+      navigate("/");
+    },
   });
 
   if (productQuery.isLoading) {
@@ -109,9 +116,7 @@ export function SentinelDetailPage() {
             {product.isActive ? "Pausar" : "Retomar"}
           </button>
           <button
-            onClick={() => {
-              if (confirm("Remover esta sentinela?")) deleteMutation.mutate();
-            }}
+            onClick={() => setConfirmDeleteOpen(true)}
             className="rounded border border-magenta/40 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-magenta hover:bg-magenta/10"
           >
             Remover
@@ -193,6 +198,17 @@ export function SentinelDetailPage() {
           </div>
         </HudFrame>
       </div>
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        title="Remover sentinela"
+        message={`Isso encerra a vigilância de "${product.name}" e apaga o histórico associado. Essa ação não pode ser desfeita.`}
+        confirmLabel="Remover"
+        onCancel={() => setConfirmDeleteOpen(false)}
+        onConfirm={() => {
+          setConfirmDeleteOpen(false);
+          deleteMutation.mutate();
+      }}
+    />
     </div>
   );
 }
