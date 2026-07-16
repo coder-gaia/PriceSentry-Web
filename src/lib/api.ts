@@ -2,6 +2,8 @@ import axios from "axios";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
+export type WebhookType = "slack" | "discord";
+
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
@@ -15,6 +17,23 @@ export function getAccessToken() {
 export const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true });
 
 let refreshPromise: Promise<string | null> | null = null;
+
+export type UserProfile = {
+  id: string;
+  email: string;
+  webhookUrl: string | null;
+  webhookType: WebhookType | null;
+};
+
+export async function getMe() {
+  const { data } = await api.get<UserProfile>("/auth/me");
+  return data;
+}
+
+export async function updateWebhookSettings(input: { webhookUrl: string | null; webhookType: WebhookType | null }) {
+  const { data } = await api.patch<UserProfile>("/auth/webhook", input);
+  return data;
+}
 
 async function refreshAccessTokenOnce(): Promise<string | null> {
   if (!refreshPromise) {
