@@ -2,6 +2,8 @@ import axios from "axios";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
+const PUBLIC_AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/refresh"];
+
 export type WebhookType = "slack" | "discord";
 
 let accessToken: string | null = null;
@@ -58,8 +60,9 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-    const isAuthEndpoint = original?.url?.startsWith("/auth/");
-    if (error.response?.status === 401 && !original?._retried && !isAuthEndpoint) {
+    const isPublicAuthEndpoint = PUBLIC_AUTH_PATHS.some((path) => original?.url?.startsWith(path));
+
+    if (error.response?.status === 401 && !original?._retried && !isPublicAuthEndpoint) {
       original._retried = true;
       const newToken = await refreshAccessTokenOnce();
       if (newToken) {
@@ -70,7 +73,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
 export async function refreshSession() {
   const { data } = await api.post<{ token: string; user: AuthUser }>("/auth/refresh");
   return data;

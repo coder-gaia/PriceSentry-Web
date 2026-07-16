@@ -31,8 +31,7 @@ export function WebhookSettingsModal({ open, onClose }: WebhookSettingsModalProp
     onSuccess: (data) => {
       queryClient.setQueryData(["me"], data);
       setFormError(null);
-      setSavedMessage("Configuração salva.");
-      setTimeout(() => setSavedMessage(null), 2500);
+      onClose();
     },
     onError: () => setFormError("Não foi possível salvar. Confira a URL do webhook."),
   });
