@@ -15,7 +15,7 @@ export function WebhookSettingsModal({ open, onClose }: WebhookSettingsModalProp
   const [channel, setChannel] = useState<WebhookType | "none">("none");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [savedMessage] = useState<string | null>(null);
 
   const profileQuery = useQuery({ queryKey: ["me"], queryFn: getMe, enabled: open });
 
