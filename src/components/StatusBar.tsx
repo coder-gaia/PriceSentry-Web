@@ -47,7 +47,7 @@ export function StatusBar({
           </button>
 
           <a
-            href={`${API_BASE_URL}admin/queues`}
+            href={`${API_BASE_URL}/admin/queues`}
             target="_blank"
             rel="noreferrer"
             className="rounded border border-static/40 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-static transition hover:border-cyan hover:text-cyan"
