@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   setAccessToken,
   login as apiLogin,
@@ -23,31 +23,35 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const authGenerationRef = useRef(0);
 
   useEffect(() => {
+    const generation = authGenerationRef.current;
     let cancelled = false;
+
     refreshSession()
       .then((result) => {
-        if (cancelled) return;
+        if (cancelled || authGenerationRef.current !== generation) return;
         setAccessToken(result.token);
         setUser(result.user);
         connectSocket(result.token);
       })
       .catch(() => {
-        if (cancelled) return;
+        if (cancelled || authGenerationRef.current !== generation) return;
         setAccessToken(null);
         setUser(null);
-        disconnectSocket();
       })
       .finally(() => {
         if (!cancelled) setIsInitializing(false);
       });
+
     return () => {
       cancelled = true;
     };
   }, []);
 
   const login = async (email: string, password: string) => {
+    authGenerationRef.current += 1;
     const result = await apiLogin(email, password);
     setAccessToken(result.token);
     setUser(result.user);
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string) => {
+    authGenerationRef.current += 1;
     const result = await apiRegister(email, password);
     setAccessToken(result.token);
     setUser(result.user);
@@ -62,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    authGenerationRef.current += 1;
     setAccessToken(null);
     setUser(null);
     disconnectSocket();
