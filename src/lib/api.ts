@@ -9,6 +9,7 @@ export type WebhookType = "slack" | "discord";
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
+  console.log(`[auth-debug] setAccessToken(${token ? "token-present" : "null"})`, new Error().stack?.split("\n")[2]?.trim());
   accessToken = token;
 }
 
@@ -17,6 +18,14 @@ export function getAccessToken() {
 }
 
 export const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true });
+
+api.interceptors.request.use((config) => {
+  console.log(`[auth-debug] request ${config.method} ${config.url} — token present: ${!!accessToken}`);
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
 
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -39,13 +48,16 @@ export async function updateWebhookSettings(input: { webhookUrl: string | null; 
 
 async function refreshAccessTokenOnce(): Promise<string | null> {
   if (!refreshPromise) {
+    console.log("[auth-debug] attempting /auth/refresh");
     refreshPromise = api
       .post<{ token: string }>("/auth/refresh")
       .then((response) => {
+        console.log("[auth-debug] /auth/refresh succeeded");
         setAccessToken(response.data.token);
         return response.data.token;
       })
-      .catch(() => {
+      .catch((err) => {
+        console.log("[auth-debug] /auth/refresh FAILED:", err?.response?.status, err?.response?.data);
         setAccessToken(null);
         return null;
       })

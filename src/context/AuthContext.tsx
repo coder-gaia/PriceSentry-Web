@@ -25,38 +25,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const authGenerationRef = useRef(0);
 
-  useEffect(() => {
-    const generation = authGenerationRef.current;
-    let cancelled = false;
+useEffect(() => {
+  const generation = authGenerationRef.current;
+  let cancelled = false;
+  console.log(`[auth-debug] bootstrap: starting refreshSession() (generation ${generation})`);
 
-    refreshSession()
-      .then((result) => {
-        if (cancelled || authGenerationRef.current !== generation) return;
-        setAccessToken(result.token);
-        setUser(result.user);
-        connectSocket(result.token);
-      })
-      .catch(() => {
-        if (cancelled || authGenerationRef.current !== generation) return;
-        setAccessToken(null);
-        setUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setIsInitializing(false);
-      });
+  refreshSession()
+    .then((result) => {
+      if (cancelled || authGenerationRef.current !== generation) {
+        console.log(`[auth-debug] bootstrap: resolved but STALE (generation was ${generation}, now ${authGenerationRef.current}, cancelled=${cancelled}) — ignoring`);
+        return;
+      }
+      console.log(`[auth-debug] bootstrap: refreshSession() succeeded, setting token+user`);
+      setAccessToken(result.token);
+      setUser(result.user);
+      connectSocket(result.token);
+    })
+    .catch((err) => {
+      if (cancelled || authGenerationRef.current !== generation) {
+        console.log(`[auth-debug] bootstrap: rejected but STALE — ignoring`);
+        return;
+      }
+      console.log(`[auth-debug] bootstrap: refreshSession() FAILED:`, err?.response?.status, err?.response?.data);
+      setAccessToken(null);
+      setUser(null);
+    })
+    .finally(() => {
+      if (!cancelled) setIsInitializing(false);
+    });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    authGenerationRef.current += 1;
-    const result = await apiLogin(email, password);
-    setAccessToken(result.token);
-    setUser(result.user);
-    connectSocket(result.token);
+  return () => {
+    cancelled = true;
   };
+}, []);
+
+const login = async (email: string, password: string) => {
+  authGenerationRef.current += 1;
+  console.log(`[auth-debug] login(): calling apiLogin, bumping generation to ${authGenerationRef.current}`);
+  const result = await apiLogin(email, password);
+  console.log(`[auth-debug] login(): apiLogin succeeded, setting token+user`);
+  setAccessToken(result.token);
+  setUser(result.user);
+  connectSocket(result.token);
+};
 
   const register = async (email: string, password: string) => {
     authGenerationRef.current += 1;
