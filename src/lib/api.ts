@@ -72,6 +72,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+    console.log(
+      `[auth-debug] response error for ${original?.method} ${original?.url}:`,
+      error.response?.status,
+      error.response?.data,
+    );
     const isPublicAuthEndpoint = PUBLIC_AUTH_PATHS.some((path) => original?.url?.startsWith(path));
 
     if (error.response?.status === 401 && !original?._retried && !isPublicAuthEndpoint) {
@@ -85,6 +90,7 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
 export async function refreshSession() {
   const { data } = await api.post<{ token: string; user: AuthUser }>("/auth/refresh");
   return data;
