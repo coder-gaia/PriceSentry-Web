@@ -28,25 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 useEffect(() => {
   const generation = authGenerationRef.current;
   let cancelled = false;
-  console.log(`[auth-debug] bootstrap: starting refreshSession() (generation ${generation})`);
 
   refreshSession()
     .then((result) => {
       if (cancelled || authGenerationRef.current !== generation) {
-        console.log(`[auth-debug] bootstrap: resolved but STALE (generation was ${generation}, now ${authGenerationRef.current}, cancelled=${cancelled}) — ignoring`);
         return;
       }
-      console.log(`[auth-debug] bootstrap: refreshSession() succeeded, setting token+user`);
       setAccessToken(result.token);
       setUser(result.user);
       connectSocket(result.token);
     })
     .catch((err) => {
       if (cancelled || authGenerationRef.current !== generation) {
-        console.log(`[auth-debug] bootstrap: rejected but STALE — ignoring`);
         return;
       }
-      console.log(`[auth-debug] bootstrap: refreshSession() FAILED:`, err?.response?.status, err?.response?.data);
       setAccessToken(null);
       setUser(null);
     })
@@ -61,9 +56,7 @@ useEffect(() => {
 
 const login = async (email: string, password: string) => {
   authGenerationRef.current += 1;
-  console.log(`[auth-debug] login(): calling apiLogin, bumping generation to ${authGenerationRef.current}`);
   const result = await apiLogin(email, password);
-  console.log(`[auth-debug] login(): apiLogin succeeded, setting token+user`);
   setAccessToken(result.token);
   setUser(result.user);
   connectSocket(result.token);
