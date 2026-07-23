@@ -44,6 +44,7 @@ useEffect(() => {
       }
       setAccessToken(null);
       setUser(null);
+      console.error("Failed to refresh session:", err);
     })
     .finally(() => {
       if (!cancelled) setIsInitializing(false);
